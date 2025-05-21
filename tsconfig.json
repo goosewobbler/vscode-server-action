@@ -6,7 +6,7 @@
     "module": "es2022",
     "typeRoots": ["./types", "node_modules/@types"],
     "moduleResolution": "node",
-    "outDir": "./lib",
+    "noEmit": true,
     "esModuleInterop": true
   }
 }

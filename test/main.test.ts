@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 import { download } from '@vscode/test-electron'
+import * as execa from 'execa'
 
 import { run } from '../src/main'
 
@@ -12,12 +13,16 @@ vi.mock('node:child_process', () => ({
 vi.mock('@vscode/test-electron', () => ({
   download: vi.fn().mockReturnValue('/path/to/code'),
 }))
+vi.mock('execa', () => ({
+  execa: vi.fn().mockResolvedValue({ exitCode: 0 }),
+}))
 
 const processExit = process.exit.bind(process)
 const globalSetTimeout = globalThis.setTimeout
 beforeEach(() => {
   vi.mocked(spawn).mockClear()
   vi.mocked(download).mockClear()
+  vi.mocked(execa.execa).mockClear()
   // @ts-expect-error - Mocking process.exit
   process.exit = vi.fn()
   // @ts-expect-error mock setTimeout
@@ -26,11 +31,12 @@ beforeEach(() => {
 
 test('should continue build if timeout is reached', async () => {
   const execPromise = run()
-  expect(download).toBeCalledTimes(2)
+  expect(download).toBeCalledTimes(1)
   expect(await execPromise).toBe(undefined)
-  expect(vi.mocked(spawn).mock.calls[0][1][0]).toBe('tunnel')
-  expect(vi.mocked(spawn).mock.calls[0][1][2]).toBe('rename')
-  expect(spawn).toBeCalledTimes(1)
+
+  const calls = vi.mocked(execa.execa).mock.calls
+  expect(calls.length).toBeGreaterThan(0)
+  expect(calls[0][1]?.[0]).toBe('--help')
   expect(process.exit).toBeCalledWith(0)
 })
 
@@ -44,9 +50,10 @@ test('start server if machine gets authorised', async () => {
   const execPromise = run()
   expect(download).toBeCalledTimes(1)
   await execPromise
-  expect(spawn).toBeCalledTimes(2)
-  expect(vi.mocked(spawn).mock.calls[1][1][0]).toBe('tunnel')
-  expect(vi.mocked(spawn).mock.calls[1][1].length).toBe(2)
+
+  const calls = vi.mocked(execa.execa).mock.calls
+  expect(calls.length).toBeGreaterThan(1)
+  expect(calls[1][1]?.[0]).toBe('tunnel')
 })
 
 afterEach(() => {

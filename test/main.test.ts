@@ -7,10 +7,10 @@ import { run } from '../src/main'
 
 vi.useFakeTimers()
 vi.mock('node:child_process', () => ({
-  spawn: vi.fn().mockReturnValue({ on: vi.fn() })
+  spawn: vi.fn().mockReturnValue({ on: vi.fn() }),
 }))
 vi.mock('@vscode/test-electron', () => ({
-  download: vi.fn().mockReturnValue('/path/to/code')
+  download: vi.fn().mockReturnValue('/path/to/code'),
 }))
 
 const processExit = process.exit.bind(process)
@@ -18,6 +18,7 @@ const globalSetTimeout = globalThis.setTimeout
 beforeEach(() => {
   vi.mocked(spawn).mockClear()
   vi.mocked(download).mockClear()
+  // @ts-expect-error - Mocking process.exit
   process.exit = vi.fn()
   // @ts-expect-error mock setTimeout
   globalThis.setTimeout = vi.fn((cb) => cb())
@@ -35,10 +36,11 @@ test('should continue build if timeout is reached', async () => {
 
 test('start server if machine gets authorised', async () => {
   vi.mocked(spawn).mockReturnValue({
-    on: (eventName: string, cb: (exitCode: number) => void) => cb(0)
-  } as any)
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  vi.mocked(globalThis.setTimeout).mockImplementation(((cb) => {}) as any)
+    on: (_eventName: string, cb: (exitCode: number) => void) => cb(0),
+  } as unknown as ReturnType<typeof spawn>)
+  vi.mocked(globalThis.setTimeout).mockImplementation(
+    (() => {}) as unknown as typeof setTimeout,
+  )
   const execPromise = run()
   expect(download).toBeCalledTimes(1)
   await execPromise

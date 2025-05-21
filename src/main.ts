@@ -7,47 +7,59 @@ import { getInput } from '@actions/core'
 
 const nodePath = resolve(process.argv[1])
 
+const getCodePath = async (): Promise<string> => {
+  const electronPath = await download({ version: 'stable' })
+
+  if (platform() === 'darwin') {
+    return resolve(electronPath, '..', '..', 'Resources', 'app', 'bin', 'code')
+  }
+
+  if (platform() === 'win32') {
+    return resolve(dirname(electronPath), 'bin', 'code.cmd')
+  }
+
+  return resolve(dirname(electronPath), 'bin', 'code')
+}
+
 export const run = async (): Promise<void> => {
   /**
    * name of the machine to access
    */
   const machineId = (
-    getInput('machineName')
-    || process.env.GITHUB_RUN_ID
-    || `machine-${Date.now()}`
+    getInput('machineName') ||
+    process.env.GITHUB_RUN_ID ||
+    `machine-${Date.now()}`
   ).slice(0, 20)
 
   /**
    * The time until the action continues the build of the machine
    * does not get authorised
    */
-  const timeout = (
-    parseInt(getInput('timeout'), 10)
-    || 30 * 1000 // default 30s
-  )
+  const timeout = Number.parseInt(getInput('timeout'), 10) || 30 * 1000 // default 30s
 
   /**
    * download latest VS Code
    */
-  const electronPath = await download({ version: 'stable' })
-  const codePath = platform() === 'darwin'
-    ? resolve(electronPath, '..', '..', 'Resources', 'app', 'bin', 'code')
-    : platform() === 'win32'
-      ? resolve(dirname(electronPath), 'bin', 'code.cmd')
-      : resolve(dirname(electronPath), 'bin', 'code')
+  const codePath = await getCodePath()
 
   /**
    * name the machine as an individual command so that we don't
    * get prompt when launching the server
    */
-  console.log('RUN', codePath, ['tunnel', '--accept-server-license-terms', 'rename', machineId].join(' '));
+  console.log(
+    'RUN',
+    codePath,
+    ['tunnel', '--accept-server-license-terms', 'rename', machineId].join(' '),
+  )
   await execa(codePath, ['--help'])
   const startServer = await Promise.race([
     new Promise((resolve) => setTimeout(() => resolve(false), timeout)),
-    execa(
-      codePath,
-      ['tunnel', '--accept-server-license-terms', 'rename', machineId]
-    ).then(() => true)
+    execa(codePath, [
+      'tunnel',
+      '--accept-server-license-terms',
+      'rename',
+      machineId,
+    ]).then(() => true),
   ])
 
   console.log(5)
@@ -58,7 +70,7 @@ export const run = async (): Promise<void> => {
 
   console.log(6)
   await execa(codePath, ['tunnel', '--accept-server-license-terms'], {
-    stdio: [process.stdin, process.stdout, process.stderr]
+    stdio: [process.stdin, process.stdout, process.stderr],
   })
 }
 

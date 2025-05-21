@@ -3,6 +3,7 @@
   "version": "1.3.0",
   "description": "A GitHub Action that allows to debug GitHub workflows using VS Code",
   "main": "main.ts",
+  "type": "module",
   "scripts": {
     "build": "tsc && ncc build ./src/main.ts -o dist",
     "clean": "pnpx shx rm -rf dist",
